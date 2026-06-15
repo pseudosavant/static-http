@@ -89,6 +89,7 @@ def test_headers_and_directory_listing_controls(tmp_path: Path) -> None:
     root.mkdir()
     (root / "index.txt").write_bytes(b"index")
     (tmp_path / "a b.txt").write_bytes(b"space")
+    (tmp_path / ".hidden.txt").write_bytes(b"secret")
     (tmp_path / "rootdir").mkdir()
 
     with _running_server(
@@ -110,6 +111,10 @@ def test_headers_and_directory_listing_controls(tmp_path: Path) -> None:
             assert resp.headers["Access-Control-Allow-Origin"] == "*"
             assert resp.headers["Cache-Control"] == "no-store"
 
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(_http_url(srv, "/.hidden.txt"))
+        assert exc.value.code in {400, 404}
+
     with _running_server(
         tmp_path,
         extra_headers={},
@@ -119,6 +124,27 @@ def test_headers_and_directory_listing_controls(tmp_path: Path) -> None:
         with pytest.raises(urllib.error.HTTPError) as exc:
             urllib.request.urlopen(_http_url(srv, "/"))
         assert exc.value.code == 403
+
+
+def test_show_hidden_flag_exposes_hidden_entries(tmp_path: Path) -> None:
+    (tmp_path / ".hidden.txt").write_bytes(b"secret")
+
+    with _running_server(
+        tmp_path,
+        extra_headers={},
+        disable_dir_list=False,
+        quiet=True,
+        show_hidden=True,
+    ) as srv:
+        list_url = _http_url(srv, "/")
+        with urllib.request.urlopen(list_url) as resp:
+            assert resp.status == 200
+            body = resp.read()
+            assert b".hidden.txt" in body
+
+        with urllib.request.urlopen(_http_url(srv, "/.hidden.txt")) as resp:
+            assert resp.status == 200
+            assert resp.read() == b"secret"
 
 
 def test_path_traversal_cannot_escape_root(tmp_path: Path) -> None:

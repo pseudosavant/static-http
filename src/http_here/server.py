@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import html
 import os
 import sys
 import posixpath
@@ -27,11 +28,13 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         extra_headers: Mapping[str, str],
         disable_dir_list: bool,
         quiet: bool,
+        show_hidden: bool,
         **kwargs,
     ) -> None:
         self._extra_headers = dict(extra_headers)
         self._disable_dir_list = disable_dir_list
         self._quiet = quiet
+        self._show_hidden = show_hidden
         super().__init__(*args, directory=directory, **kwargs)
 
     def _add_custom_headers(self) -> None:
@@ -47,6 +50,11 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         if self._quiet:
             return
         super().log_error(format, *args)
+
+    def _is_hidden(self, segment: str) -> bool:
+        if self._show_hidden:
+            return False
+        return segment.startswith(".")
 
     def translate_path(self, path: str) -> str | None:
         # Safe path mapping inspired by SimpleHTTPRequestHandler, with strict traversal defense.
@@ -67,7 +75,7 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                     continue
                 if segment == "..":
                     continue
-                if segment == ".git":
+                if self._is_hidden(segment):
                     return None
                 if ":" in segment:
                     return None
@@ -191,6 +199,65 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
             f.close()
             raise
 
+    def list_directory(self, path: str) -> io.BytesIO | None:
+        if self._show_hidden:
+            return super().list_directory(path)
+
+        try:
+            listdir = os.listdir(path)
+        except OSError:
+            self.send_error(HTTPStatus.NOT_FOUND, "No permission to list directory")
+            return None
+
+        listdir = [entry for entry in listdir if not self._is_hidden(entry)]
+        if not listdir:
+            self.send_error(HTTPStatus.NOT_FOUND, "No visible files")
+            return None
+
+        listdir.sort(key=lambda a: a.lower())
+        r = []
+
+        try:
+            displaypath = urllib.parse.unquote(self.path, errors="surrogatepass")
+        except UnicodeDecodeError:
+            displaypath = urllib.parse.unquote(self.path)
+        displaypath = html.escape(displaypath)
+
+        enc = "UTF-8"
+        title = f"Directory listing for {displaypath}"
+        r.append("<!DOCTYPE html>\n")
+        r.append("<html>\n<head>\n")
+        r.append(f'<meta charset="{enc}">\n')
+        r.append(f"<title>{title}</title>\n")
+        r.append("</head>\n<body>\n")
+        r.append(f"<h1>{title}</h1>\n<hr>\n<ul>\n")
+
+        for name in listdir:
+            full_name = os.path.join(path, name)
+            displayname = linkname = name
+            if os.path.isdir(full_name):
+                displayname = name + "/"
+                linkname = name + "/"
+            if os.path.islink(full_name):
+                displayname = name + "@"
+
+            r.append(
+                f'<li><a href="{urllib.parse.quote(linkname, errors="surrogatepass")}">'
+                f"{html.escape(displayname)}</a></li>\n"
+            )
+
+        r.append("</ul>\n<hr>\n</body>\n</html>\n")
+        encoded = "".join(r).encode(enc, "surrogateescape")
+
+        f = io.BytesIO()
+        f.write(encoded)
+        f.seek(0)
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", f"text/html; charset={enc}")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        return f
+
 
 class _RangeFile:
     def __init__(self, wrapped: io.BufferedReader, remaining: int) -> None:
@@ -224,7 +291,7 @@ class ThreadedHTTPServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def make_handler(*, directory: str, extra_headers: Mapping[str, str], disable_dir_list: bool, quiet: bool):
+def make_handler(*, directory: str, extra_headers: Mapping[str, str], disable_dir_list: bool, quiet: bool, show_hidden: bool = False):
     def _factory(*args, **kwargs):
         return RangeAwareHTTPRequestHandler(
             *args,
@@ -232,6 +299,7 @@ def make_handler(*, directory: str, extra_headers: Mapping[str, str], disable_di
             extra_headers=extra_headers,
             disable_dir_list=disable_dir_list,
             quiet=quiet,
+            show_hidden=show_hidden,
             **kwargs,
         )
 

@@ -50,6 +50,7 @@ By default:
 - `--no-cache` — send `Cache-Control: no-store`.
 - `--quiet` — suppress per-request logs.
 - `--verbose` — print detailed startup/binding information.
+- `--include-hidden` — include dot-prefixed files and directories in normal serving and directory listings.
 - `--version` — print package version and exit.
 
 ## Examples
@@ -60,6 +61,7 @@ static-http --qr
 static-http --no-cache
 static-http --quiet
 static-http --verbose
+static-http --include-hidden
 static-http --port 9000 --cors
 static-http --no-dir-list
 ```

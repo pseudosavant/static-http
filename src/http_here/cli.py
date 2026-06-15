@@ -126,6 +126,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Print extra startup and binding information.",
     )
     parser.add_argument(
+        "--include-hidden",
+        action="store_true",
+        help="Include dot-prefixed files/directories when serving and listing directories.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=__version__,
@@ -173,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
         extra_headers=response_headers,
         disable_dir_list=args.no_dir_list,
         quiet=effective_quiet,
+        show_hidden=args.include_hidden,
     )
 
     try:
