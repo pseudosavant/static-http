@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import io
 import html
+import io
 import os
-import sys
-import posixpath
 import stat
+import sys
 import urllib.parse
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -56,6 +55,20 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
             return False
         return segment.startswith(".")
 
+    def _has_hidden_attribute(self, path: str) -> bool:
+        if self._show_hidden:
+            return False
+        hidden_flag = getattr(stat, "FILE_ATTRIBUTE_HIDDEN", 0)
+        if not hidden_flag:
+            return False
+        try:
+            return bool(os.stat(path).st_file_attributes & hidden_flag)
+        except (AttributeError, OSError):
+            return False
+
+    def _is_hidden_entry(self, name: str, path: str) -> bool:
+        return self._is_hidden(name) or self._has_hidden_attribute(path)
+
     def translate_path(self, path: str) -> str | None:
         # Safe path mapping inspired by SimpleHTTPRequestHandler, with strict traversal defense.
         path = path.split("?", 1)[0]
@@ -65,25 +78,23 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         if "\x00" in path:
             return None
 
-        path = posixpath.normpath(path)
-        if path == "/":
-            parts: list[str] = []
-        else:
-            parts = []
-            for segment in path.split("/"):
-                if segment in ("", "."):
-                    continue
-                if segment == "..":
-                    continue
-                if self._is_hidden(segment):
-                    return None
-                if ":" in segment:
-                    return None
-                parts.append(segment)
+        parts = []
+        for segment in path.split("/"):
+            if segment in ("", "."):
+                continue
+            if segment == "..":
+                return None
+            if self._is_hidden(segment):
+                return None
+            if ":" in segment:
+                return None
+            parts.append(segment)
 
         candidate = self.directory
         for part in parts:
             candidate = os.path.join(candidate, part)
+            if self._has_hidden_attribute(candidate):
+                return None
 
         candidate = os.path.normpath(candidate)
         root = os.path.realpath(self.directory)
@@ -119,9 +130,11 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         f = None
 
         if os.path.isdir(path):
-            if not self.path.endswith("/"):
+            parts = urllib.parse.urlsplit(self.path)
+            if not parts.path.endswith("/"):
+                location = urllib.parse.urlunsplit(("", "", parts.path + "/", parts.query, parts.fragment))
                 self.send_response(HTTPStatus.MOVED_PERMANENTLY)
-                self.send_header("Location", self.path + "/")
+                self.send_header("Location", location)
                 self._add_custom_headers()
                 self.end_headers()
                 return None
@@ -156,7 +169,10 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             if_modified_since = self.headers.get("If-Modified-Since")
             if if_modified_since:
-                parsed = parsedate_to_datetime(if_modified_since)
+                try:
+                    parsed = parsedate_to_datetime(if_modified_since)
+                except (IndexError, OverflowError, TypeError, ValueError):
+                    parsed = None
                 if parsed is not None:
                     if parsed.tzinfo is None:
                         parsed = parsed.replace(tzinfo=timezone.utc)
@@ -200,20 +216,13 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
             raise
 
     def list_directory(self, path: str) -> io.BytesIO | None:
-        if self._show_hidden:
-            return super().list_directory(path)
-
         try:
             listdir = os.listdir(path)
         except OSError:
             self.send_error(HTTPStatus.NOT_FOUND, "No permission to list directory")
             return None
 
-        listdir = [entry for entry in listdir if not self._is_hidden(entry)]
-        if not listdir:
-            self.send_error(HTTPStatus.NOT_FOUND, "No visible files")
-            return None
-
+        listdir = [entry for entry in listdir if not self._is_hidden_entry(entry, os.path.join(path, entry))]
         listdir.sort(key=lambda a: a.lower())
         r = []
 
@@ -255,6 +264,7 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", f"text/html; charset={enc}")
         self.send_header("Content-Length", str(len(encoded)))
+        self._add_custom_headers()
         self.end_headers()
         return f
 
