@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "static-http"
-version = "0.1.1"
+version = "0.1.2"
 description = "A temporary dependency-free static HTTP server with byte-range support."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "static-http contributors" }]
+authors = [{ name = "John Paul Ellis" }]
 dependencies = []
 keywords = ["http", "server", "static-http", "static", "range", "cli"]
 classifiers = [
