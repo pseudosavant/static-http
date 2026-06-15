@@ -1,0 +1,13 @@
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc.*
+*.pyo.*
+*.pyd.*
+*.egg-info/
+.tmp_pytest/
+manual-smoke/
+manual_server.out
+manual_server.err
