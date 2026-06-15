@@ -33,6 +33,7 @@ By default:
 - Listens on port `8080`.
 - Uses a threaded HTTP server.
 - Handles `GET`, `HEAD`, and single-range requests.
+- Hides dot-prefixed and platform-hidden files/directories unless `--include-hidden` is used.
 
 ## CLI
 
@@ -48,9 +49,9 @@ By default:
 - `--open` — open the server URL in the default browser after startup.
 - `--qr` — render a terminal QR code for the server URL.
 - `--no-cache` — send `Cache-Control: no-store`.
-- `--quiet` — suppress per-request logs.
+- `--quiet` — explicitly keep per-request logs suppressed. This is the default.
 - `--verbose` — print detailed startup/binding information.
-- `--include-hidden` — include dot-prefixed files and directories in normal serving and directory listings.
+- `--include-hidden` — include dot-prefixed and platform-hidden files/directories in normal serving and directory listings.
 - `--version` — print package version and exit.
 
 ## Examples
@@ -65,6 +66,12 @@ static-http --include-hidden
 static-http --port 9000 --cors
 static-http --no-dir-list
 ```
+
+## QR codes
+
+`--qr` prints a terminal QR code for the selected server URL. For the default all-interface bind, it prefers a discovered LAN URL when one is available; otherwise it falls back to localhost.
+
+The built-in QR renderer is intentionally dependency-free and sized for normal localhost/LAN URLs. If the URL is too long or the terminal is too narrow, `static-http` prints a warning and keeps serving.
 
 ## Shutdown
 
@@ -85,6 +92,8 @@ The server returns `206 Partial Content` for satisfiable ranges, `416 Range Not 
 ## Security note
 
 `static-http` is intentionally a **temporary** local development/file-serving tool, not a production web server.
+
+By default it binds to `0.0.0.0`, which can expose the selected directory to other clients that can reach your machine. It has no authentication, authorization, TLS, upload handling, or production hardening. Use `--localhost-only` when you only need access from the same machine, and use trusted networks for LAN sharing.
 
 ## License
 
