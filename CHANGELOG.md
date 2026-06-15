@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Fix QR Reed-Solomon error correction codeword generation.
+- Fix QR format-information module placement and fixed dark module handling.
+- Add regression coverage for QR codewords and format-bit placement.
+
 ## 0.1.4
 
 - Replace the fake QR-like renderer with a real dependency-free QR encoder.

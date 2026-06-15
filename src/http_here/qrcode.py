@@ -36,37 +36,28 @@ def _gf_mul(x: int, y: int) -> int:
     return result
 
 
-def _gf_pow(x: int, power: int) -> int:
-    result = 1
-    for _ in range(power):
-        result = _gf_mul(result, x)
-    return result
-
-
 def _generator_poly(degree: int) -> list[int]:
-    result = [1]
-    for i in range(degree):
-        result = _poly_mul(result, [1, _gf_pow(2, i)])
-    return result
-
-
-def _poly_mul(left: list[int], right: list[int]) -> list[int]:
-    result = [0] * (len(left) + len(right) - 1)
-    for i, left_value in enumerate(left):
-        for j, right_value in enumerate(right):
-            result[i + j] ^= _gf_mul(left_value, right_value)
+    result = [0] * degree
+    result[-1] = 1
+    root = 1
+    for _ in range(degree):
+        for i in range(degree):
+            result[i] = _gf_mul(result[i], root)
+            if i + 1 < degree:
+                result[i] ^= result[i + 1]
+        root = _gf_mul(root, 0x02)
     return result
 
 
 def _reed_solomon(data: list[int], degree: int) -> list[int]:
-    generator = _generator_poly(degree)
-    result = data + [0] * degree
-    for i, value in enumerate(data):
-        if value == 0:
-            continue
-        for j, coefficient in enumerate(generator):
-            result[i + j] ^= _gf_mul(coefficient, value)
-    return result[-degree:]
+    divisor = _generator_poly(degree)
+    result = [0] * degree
+    for byte in data:
+        factor = byte ^ result.pop(0)
+        result.append(0)
+        for i, coefficient in enumerate(divisor):
+            result[i] ^= _gf_mul(coefficient, factor)
+    return result
 
 
 def _append_bits(bits: list[int], value: int, length: int) -> None:
@@ -139,7 +130,6 @@ def _draw_function_patterns(matrix: list[list[bool | None]], function: list[list
         _set_function(matrix, function, 6, i, i % 2 == 0)
         _set_function(matrix, function, i, 6, i % 2 == 0)
 
-    _set_function(matrix, function, size - 8, 8, True)
     _draw_format_bits(matrix, function, 0)
 
 
@@ -199,44 +189,24 @@ def _format_bits(mask: int) -> int:
 def _draw_format_bits(matrix: list[list[bool | None]], function: list[list[bool]], mask: int) -> None:
     bits = _format_bits(mask)
     size = len(matrix)
-    positions_a = [
-        (8, 0),
-        (8, 1),
-        (8, 2),
-        (8, 3),
-        (8, 4),
-        (8, 5),
-        (8, 7),
-        (8, 8),
-        (7, 8),
-        (5, 8),
-        (4, 8),
-        (3, 8),
-        (2, 8),
-        (1, 8),
-        (0, 8),
-    ]
-    positions_b = [
-        (size - 1, 8),
-        (size - 2, 8),
-        (size - 3, 8),
-        (size - 4, 8),
-        (size - 5, 8),
-        (size - 6, 8),
-        (size - 7, 8),
-        (8, size - 8),
-        (8, size - 7),
-        (8, size - 6),
-        (8, size - 5),
-        (8, size - 4),
-        (8, size - 3),
-        (8, size - 2),
-        (8, size - 1),
-    ]
-    for i, (row, col) in enumerate(positions_a):
-        _set_function(matrix, function, row, col, ((bits >> i) & 1) == 1)
-    for i, (row, col) in enumerate(positions_b):
-        _set_function(matrix, function, row, col, ((bits >> i) & 1) == 1)
+    for i in range(15):
+        dark = ((bits >> i) & 1) == 1
+
+        if i < 6:
+            _set_function(matrix, function, i, 8, dark)
+        elif i < 8:
+            _set_function(matrix, function, i + 1, 8, dark)
+        else:
+            _set_function(matrix, function, size - 15 + i, 8, dark)
+
+        if i < 8:
+            _set_function(matrix, function, 8, size - i - 1, dark)
+        elif i == 8:
+            _set_function(matrix, function, 8, 7, dark)
+        else:
+            _set_function(matrix, function, 8, 14 - i, dark)
+
+    _set_function(matrix, function, size - 8, 8, True)
 
 
 def _penalty(matrix: list[list[bool | None]]) -> int:
