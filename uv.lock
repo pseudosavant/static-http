@@ -274,8 +274,8 @@ wheels = [
 ]
 
 [[package]]
-name = "http-here"
-version = "0.1.0"
+name = "static-http"
+version = "0.1.1"
 source = { editable = "." }
 
 [package.optional-dependencies]
