@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import sys
 import posixpath
 import stat
 import urllib.parse
@@ -42,6 +43,11 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
             return
         super().log_message(format, *args)
 
+    def log_error(self, format: str, *args) -> None:
+        if self._quiet:
+            return
+        super().log_error(format, *args)
+
     def translate_path(self, path: str) -> str | None:
         # Safe path mapping inspired by SimpleHTTPRequestHandler, with strict traversal defense.
         path = path.split("?", 1)[0]
@@ -61,6 +67,8 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                     continue
                 if segment == "..":
                     continue
+                if segment == ".git":
+                    return None
                 if ":" in segment:
                     return None
                 parts.append(segment)
@@ -205,6 +213,15 @@ class _RangeFile:
 class ThreadedHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    def handle_error(self, request, client_address) -> None:  # type: ignore[override]
+        exc = sys.exc_info()[1]
+        if (
+            not bool(getattr(self, "verbose", False))
+            and isinstance(exc, (BrokenPipeError, ConnectionAbortedError, ConnectionResetError))
+        ):
+            return
+        super().handle_error(request, client_address)
 
 
 def make_handler(*, directory: str, extra_headers: Mapping[str, str], disable_dir_list: bool, quiet: bool):

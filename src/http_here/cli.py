@@ -166,12 +166,13 @@ def main(argv: list[str] | None = None) -> int:
     bind_port = args.port
 
     response_headers = build_response_headers(cors=args.cors, no_cache=args.no_cache, headers=args.header)
+    effective_quiet = args.quiet or not args.verbose
 
     handler = make_handler(
         directory=root,
         extra_headers=response_headers,
         disable_dir_list=args.no_dir_list,
-        quiet=args.quiet,
+        quiet=effective_quiet,
     )
 
     try:
@@ -179,6 +180,8 @@ def main(argv: list[str] | None = None) -> int:
     except OSError as exc:
         print(f"Could not bind {bind_host}:{bind_port}: {exc}", file=sys.stderr)
         return 1
+
+    server.verbose = bool(args.verbose)
 
     actual_bind = server.server_address[0]
     actual_port = server.server_address[1]
