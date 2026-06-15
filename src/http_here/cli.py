@@ -51,7 +51,7 @@ def _parse_header(raw: str) -> tuple[str, str]:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="http-here", description="Serve static files with byte-range support.")
+    parser = argparse.ArgumentParser(prog="static-http", description="Serve static files with byte-range support.")
     parser.add_argument(
         "-p",
         "--port",

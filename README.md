@@ -1,29 +1,29 @@
-# http-here
+# static-http
 
-`http-here` is a tiny dependency-free Python utility that starts a temporary static HTTP server in the current directory with byte-range support for quick local workflows.
+`static-http` is a tiny dependency-free Python utility that starts a temporary static HTTP server in the current directory with byte-range support for quick local workflows.
 
 It is intentionally focused on temporary file serving for local development, manual testing, media playback, and archive inspection.
 
 ## Why this exists
 
-`python -m http.server` is excellent for quick sharing but does not implement byte-range request handling. `http-here` fills that gap with a small CLI that keeps the behavior predictable and easy to reason about.
+`python -m http.server` is excellent for quick sharing but does not implement byte-range request handling. `static-http` fills that gap with a small CLI that keeps the behavior predictable and easy to reason about.
 
 ## Install
 
 ```powershell
-uvx http-here
-pipx run http-here
-python -m pip install http-here
+uvx static-http
+pipx run static-http
+python -m pip install static-http
 ```
 
 ## Quick start
 
 ```powershell
-http-here
+static-http
 ```
 
 ```powershell
-uvx http-here
+uvx static-http
 ```
 
 By default:
@@ -36,7 +36,7 @@ By default:
 
 ## CLI
 
-`http-here` supports these options:
+`static-http` supports these options:
 
 - `-p, --port PORT` — listening port. `0` requests an OS-assigned port.
 - `-d, --directory PATH` — root directory to serve. Default is the current directory.
@@ -55,13 +55,13 @@ By default:
 ## Examples
 
 ```powershell
-http-here --open
-http-here --qr
-http-here --no-cache
-http-here --quiet
-http-here --verbose
-http-here --port 9000 --cors
-http-here --no-dir-list
+static-http --open
+static-http --qr
+static-http --no-cache
+static-http --quiet
+static-http --verbose
+static-http --port 9000 --cors
+static-http --no-dir-list
 ```
 
 ## Shutdown
@@ -82,7 +82,7 @@ The server returns `206 Partial Content` for satisfiable ranges, `416 Range Not 
 
 ## Security note
 
-`http-here` is intentionally a **temporary** local development/file-serving tool, not a production web server.
+`static-http` is intentionally a **temporary** local development/file-serving tool, not a production web server.
 
 ## License
 
