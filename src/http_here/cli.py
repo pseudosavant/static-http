@@ -1,4 +1,4 @@
-"""CLI entrypoint and lifecycle management for http-here."""
+"""CLI entrypoint and lifecycle management for static-http."""
 
 from __future__ import annotations
 
@@ -207,9 +207,9 @@ def main(argv: list[str] | None = None) -> int:
             return
         shutdown_event.set()
         print("Shutting down.")
-        threading.Thread(target=server.shutdown, name="http-here-shutdown", daemon=True).start()
+        threading.Thread(target=server.shutdown, name="static-http-shutdown", daemon=True).start()
 
-    server_thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.5}, name="http-here-server", daemon=True)
+    server_thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.5}, name="static-http-server", daemon=True)
     server_thread.start()
 
     open_url = urls.get_preferred_open_url(actual_bind, actual_port, discovered_lan=discovered_lan)
