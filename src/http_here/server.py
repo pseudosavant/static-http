@@ -40,6 +40,10 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         for name, value in self._extra_headers.items():
             self.send_header(name, value)
 
+    def end_headers(self) -> None:
+        self._add_custom_headers()
+        super().end_headers()
+
     def log_message(self, format: str, *args) -> None:
         if self._quiet:
             return
@@ -69,6 +73,14 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
     def _is_hidden_entry(self, name: str, path: str) -> bool:
         return self._is_hidden(name) or self._has_hidden_attribute(path)
 
+    def _is_within_root(self, path: str) -> bool:
+        root = os.path.realpath(self.directory)
+        real_candidate = os.path.realpath(path)
+        try:
+            return os.path.commonpath([real_candidate, root]) == root
+        except ValueError:
+            return False
+
     def translate_path(self, path: str) -> str | None:
         # Safe path mapping inspired by SimpleHTTPRequestHandler, with strict traversal defense.
         path = path.split("?", 1)[0]
@@ -97,9 +109,7 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                 return None
 
         candidate = os.path.normpath(candidate)
-        root = os.path.realpath(self.directory)
-        real_candidate = os.path.realpath(candidate)
-        if os.path.commonpath([real_candidate, root]) != root:
+        if not self._is_within_root(candidate):
             return None
 
         return candidate
@@ -109,7 +119,6 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Range", unsatisfiable_content_range(size))
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", "0")
-        self._add_custom_headers()
         self.end_headers()
 
     def _write_not_modified(self, path: str, mtime: datetime) -> None:
@@ -118,7 +127,6 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", self.guess_type(path))
         self.send_header("Last-Modified", self.date_time_string(mtime.timestamp()))
         self.send_header("Content-Length", "0")
-        self._add_custom_headers()
         self.end_headers()
 
     def send_head(self) -> io.BufferedIOBase | None:
@@ -135,13 +143,17 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                 location = urllib.parse.urlunsplit(("", "", parts.path + "/", parts.query, parts.fragment))
                 self.send_response(HTTPStatus.MOVED_PERMANENTLY)
                 self.send_header("Location", location)
-                self._add_custom_headers()
+                self.send_header("Content-Length", "0")
                 self.end_headers()
                 return None
 
             for index_name in ("index.html", "index.htm"):
                 index_path = os.path.join(path, index_name)
-                if os.path.exists(index_path):
+                if (
+                    os.path.exists(index_path)
+                    and not self._is_hidden_entry(index_name, index_path)
+                    and self._is_within_root(index_path)
+                ):
                     path = index_path
                     break
             else:
@@ -149,6 +161,10 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                     self.send_error(HTTPStatus.FORBIDDEN, "Directory listing is disabled.")
                     return None
                 return self.list_directory(path)
+
+        if not self._is_within_root(path):
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid request path")
+            return None
 
         ctype = self.guess_type(path)
         try:
@@ -165,7 +181,7 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                 return None
 
             file_size = stats.st_size
-            mtime = datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc)
+            mtime = datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc).replace(microsecond=0)
 
             if_modified_since = self.headers.get("If-Modified-Since")
             if if_modified_since:
@@ -206,9 +222,8 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
                 f = _RangeFile(f, end - start + 1)
 
             self.send_header("Content-Type", ctype)
-            self.send_header("Last-Modified", self.date_time_string(stats.st_mtime))
+            self.send_header("Last-Modified", self.date_time_string(mtime.timestamp()))
             self.send_header("Accept-Ranges", "bytes")
-            self._add_custom_headers()
             self.end_headers()
             return f
         except Exception:
@@ -264,7 +279,6 @@ class RangeAwareHTTPRequestHandler(SimpleHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", f"text/html; charset={enc}")
         self.send_header("Content-Length", str(len(encoded)))
-        self._add_custom_headers()
         self.end_headers()
         return f
 

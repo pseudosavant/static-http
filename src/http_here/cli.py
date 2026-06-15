@@ -128,7 +128,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--include-hidden",
         action="store_true",
-        help="Include dot-prefixed files/directories when serving and listing directories.",
+        help="Include dot-prefixed and platform-hidden files/directories when serving and listing directories.",
     )
     parser.add_argument(
         "--version",

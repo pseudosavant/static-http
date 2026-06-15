@@ -23,14 +23,14 @@ def start_quit_watcher(on_quit) -> tuple[threading.Event, bool]:
             while not stop_event.is_set():
                 if msvcrt.kbhit():
                     ch = msvcrt.getwch()
-                    if ch.lower() == "q":
+                    if ch.lower() == "q" or ch == "\x03":
                         if not stop_event.is_set():
                             stop_event.set()
                             on_quit()
                 if stop_event.wait(0.1):
                     return
 
-        thread = threading.Thread(target=_watch, name="http-here-keyboard", daemon=True)
+        thread = threading.Thread(target=_watch, name="static-http-keyboard", daemon=True)
         thread.start()
         return stop_event, False
     except Exception:
@@ -56,7 +56,7 @@ def start_quit_watcher(on_quit) -> tuple[threading.Event, bool]:
                     if not ready:
                         continue
                     ch = os.read(fd, 1).decode(errors="ignore")
-                    if ch.lower() == "q":
+                    if ch.lower() == "q" or ch == "\x03":
                         stop_event.set()
                         on_quit()
             finally:
@@ -65,7 +65,7 @@ def start_quit_watcher(on_quit) -> tuple[threading.Event, bool]:
                 except Exception:
                     pass
 
-        thread = threading.Thread(target=_watch, name="http-here-keyboard", daemon=True)
+        thread = threading.Thread(target=_watch, name="static-http-keyboard", daemon=True)
         thread.start()
         return stop_event, False
     except Exception:
@@ -81,6 +81,6 @@ def start_quit_watcher(on_quit) -> tuple[threading.Event, bool]:
                 on_quit()
                 return
 
-    thread = threading.Thread(target=_watch, name="http-here-keyboard", daemon=True)
+    thread = threading.Thread(target=_watch, name="static-http-keyboard", daemon=True)
     thread.start()
     return stop_event, True

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0
+
+- Declare the first stable release.
+- Add rendered QR decode coverage for plain and ANSI terminal output.
+- Document and test the current 78-byte QR payload limit.
+- Fix conditional `If-Modified-Since` handling for sub-second filesystem mtimes.
+- Add custom response headers to HTTP error responses.
+- Harden directory index serving against symlink/junction escapes.
+- Improve Ctrl+C handling while reading single-key quit input.
+- Add CI and release package metadata checks.
+- Align repository documentation and workflow metadata for the `static-http` package name.
+
 ## 0.1.5
 
 - Fix QR Reed-Solomon error correction codeword generation.

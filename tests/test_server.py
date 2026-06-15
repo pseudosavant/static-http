@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 from http.client import HTTPResponse
 import threading
 import urllib.error
@@ -81,6 +82,40 @@ def test_head_returns_headers_without_body(tmp_path: Path) -> None:
             assert resp.status == 200
             assert resp.headers["Content-Length"] == "3"
             assert resp.read() == b""
+
+
+def test_if_modified_since_matches_last_modified_header(tmp_path: Path) -> None:
+    file_path = tmp_path / "hello.txt"
+    file_path.write_bytes(b"abc")
+    os.utime(file_path, (1_700_000_000.5, 1_700_000_000.5))
+
+    with _running_server(
+        tmp_path,
+        extra_headers={},
+        disable_dir_list=False,
+        quiet=True,
+    ) as srv:
+        url = _http_url(srv, "/hello.txt")
+        with urllib.request.urlopen(url) as resp:
+            last_modified = resp.headers["Last-Modified"]
+
+        req = urllib.request.Request(url, headers={"If-Modified-Since": last_modified})
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(req)
+        assert exc.value.code == 304
+
+
+def test_custom_headers_are_added_to_error_responses(tmp_path: Path) -> None:
+    with _running_server(
+        tmp_path,
+        extra_headers={"Access-Control-Allow-Origin": "*"},
+        disable_dir_list=False,
+        quiet=True,
+    ) as srv:
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(_http_url(srv, "/missing.txt"))
+        assert exc.value.code == 404
+        assert exc.value.headers["Access-Control-Allow-Origin"] == "*"
 
 
 def test_headers_and_directory_listing_controls(tmp_path: Path) -> None:
@@ -176,6 +211,25 @@ def test_path_traversal_cannot_escape_root(tmp_path: Path) -> None:
         with pytest.raises(urllib.error.HTTPError) as exc:
             urllib.request.urlopen(_http_url(srv, "/inside%5c.txt"))
         assert exc.value.code in {400, 404, 200}
+
+
+def test_directory_index_symlink_cannot_escape_root(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "outside-index.html"
+    outside.write_bytes(b"outside")
+    try:
+        os.symlink(outside, tmp_path / "index.html")
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlinks are not available: {exc}")
+
+    with _running_server(
+        tmp_path,
+        extra_headers={},
+        disable_dir_list=False,
+        quiet=True,
+    ) as srv:
+        with urllib.request.urlopen(_http_url(srv, "/")) as resp:
+            assert resp.status == 200
+            assert b"outside" not in resp.read()
 
 
 def test_directory_redirect_preserves_query_string(tmp_path: Path) -> None:

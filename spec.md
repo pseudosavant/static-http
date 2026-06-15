@@ -1,13 +1,13 @@
-# http-here Specification
+# static-http Specification
 
 ## Purpose
 
-`http-here` is a small, dependency-free Python command-line tool for starting a temporary static HTTP server rooted at the current working directory, with correct byte-range request support.
+`static-http` is a small, dependency-free Python command-line tool for starting a temporary static HTTP server rooted at the current working directory, with correct byte-range request support.
 
 It is intended to be the command you can run from any folder when a browser, media player, installer, archive reader, or other client needs files over HTTP:
 
 ```powershell
-uvx http-here
+uvx static-http
 ```
 
 The project should prioritize predictable temporary-server behavior, modern Python compatibility, and a clean CLI over framework-style configurability.
@@ -16,7 +16,7 @@ The project should prioritize predictable temporary-server behavior, modern Pyth
 
 - Serve static files from the current directory by default.
 - Support HTTP byte-range requests, including `Range: bytes=start-end`, open-ended ranges, and suffix ranges.
-- Work well with `uvx http-here` without extra arguments.
+- Work well with `uvx static-http` without extra arguments.
 - Be dependency-free at runtime.
 - Provide a clean interactive shutdown key: pressing `q` or `Q` in the focused terminal quits the server.
 - Be robust enough for common local-development, file-transfer, media, and archive-inspection workflows.
@@ -33,16 +33,16 @@ The project should prioritize predictable temporary-server behavior, modern Pyth
 
 ## Package And Command
 
-- PyPI project name: `http-here`
-- Repository name: `http-here`
+- PyPI project name: `static-http`
+- Repository name: `static-http`
 - Import package name: `http_here`
-- Console script: `http-here`
+- Console script: `static-http`
 
 `pyproject.toml` should define:
 
 ```toml
 [project.scripts]
-http-here = "http_here.cli:main"
+static-http = "http_here.cli:main"
 ```
 
 Minimum supported Python version should be `>=3.9` unless implementation details make `>=3.10` more practical. Runtime dependencies should be empty.
@@ -52,7 +52,7 @@ Minimum supported Python version should be `>=3.9` unless implementation details
 Running:
 
 ```powershell
-http-here
+static-http
 ```
 
 must:
@@ -81,7 +81,7 @@ If bound to `0.0.0.0`, the tool should also print the localhost URL. If LAN URLs
 
 ### Positional Arguments
 
-`http-here` should not accept positional arguments in v1. All configuration should be explicit options.
+`static-http` should not accept positional arguments in v1. All configuration should be explicit options.
 
 ### Options
 
@@ -142,8 +142,8 @@ Optional repeatable response header for advanced temporary use cases.
 Examples:
 
 ```powershell
-http-here --header "Cross-Origin-Opener-Policy: same-origin"
-http-here --header "Cache-Control: no-store"
+static-http --header "Cross-Origin-Opener-Policy: same-origin"
+static-http --header "Cache-Control: no-store"
 ```
 
 Validation:
@@ -185,7 +185,7 @@ Behavior:
 `--port 0` must support OS-assigned ephemeral ports.
 
 ```powershell
-http-here --port 0
+static-http --port 0
 ```
 
 The startup output must print the actual assigned port from the server socket.
@@ -217,7 +217,7 @@ This should compose with `--header`. If the user also supplies an explicit `Cach
 --quiet
 ```
 
-Suppress per-request logs while keeping startup and shutdown messages.
+Suppress per-request logs while keeping startup and shutdown messages. This is the default behavior; the flag exists to make the choice explicit.
 
 ```text
 --verbose
@@ -324,7 +324,7 @@ The implementation should avoid global CWD changes where practical by using the 
 
 ## Interactive Shutdown
 
-`http-here` must support quitting by pressing `q` or `Q` while the terminal window has focus.
+`static-http` must support quitting by pressing `q` or `Q` while the terminal window has focus.
 
 Startup output must include:
 
@@ -362,7 +362,7 @@ Required behavior:
 
 - Print startup information to stdout.
 - Print shutdown information to stdout.
-- Preserve standard request logs to stderr by default, matching `http.server`.
+- Suppress per-request logs by default.
 
 When `--quiet` is used:
 
@@ -409,7 +409,7 @@ Exit codes:
 Recommended layout:
 
 ```text
-http-here/
+static-http/
   pyproject.toml
   README.md
   LICENSE
@@ -550,22 +550,22 @@ Start the server on port `0` with a temporary directory, then use standard-libra
 Before publishing:
 
 ```powershell
-uvx --from . http-here
-uvx --from . http-here --localhost-only
-uvx --from . http-here --port 9000 --cors
-uvx --from . http-here --port 0
-uvx --from . http-here --directory C:\Temp
-uvx --from . http-here --open
-uvx --from . http-here --qr
-uvx --from . http-here --no-cache
-uvx --from . http-here --quiet
-uvx --from . http-here --verbose
+uvx --from . static-http
+uvx --from . static-http --localhost-only
+uvx --from . static-http --port 9000 --cors
+uvx --from . static-http --port 0
+uvx --from . static-http --directory C:\Temp
+uvx --from . static-http --open
+uvx --from . static-http --qr
+uvx --from . static-http --no-cache
+uvx --from . static-http --quiet
+uvx --from . static-http --verbose
 ```
 
 Verify:
 
 - Browser can load files.
-- `http-here --port 0` prints the actual assigned port.
+- `static-http --port 0` prints the actual assigned port.
 - `--open` launches the preferred URL.
 - `--qr` prints a scannable terminal QR code or a clear terminal-size warning.
 - A range-aware client receives `206`.
@@ -619,16 +619,16 @@ Initial release should be `0.1.0`.
 
 The README should include:
 
-- What `http-here` does.
+- What `static-http` does.
 - Why it exists: `python -m http.server` does not support range requests.
-- Quick start with `uvx http-here`.
+- Quick start with `uvx static-http`.
 - Install examples:
 
 ```powershell
-uvx http-here
-pipx run http-here
-python -m pip install http-here
-http-here
+uvx static-http
+pipx run static-http
+python -m pip install static-http
+static-http
 ```
 
 - CLI reference.
@@ -654,7 +654,7 @@ MIT is simpler for a small utility. Apache-2.0 is also reasonable if patent lang
 
 The initial PyPI release is ready when:
 
-- `uvx http-here` starts a server rooted at the current directory.
+- `uvx static-http` starts a server rooted at the current directory.
 - Default bind is `0.0.0.0`.
 - Default port is `8080`.
 - `--port 0` works and startup output reports the actual assigned port.

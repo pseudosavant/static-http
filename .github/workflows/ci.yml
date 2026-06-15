@@ -20,8 +20,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install -e .[dev]
+          python -m pip install -e ".[dev]"
       - name: Run tests
         run: python -m pytest
       - name: Build package
         run: python -m build
+      - name: Check package metadata
+        run: python -c "import glob, subprocess, sys; subprocess.check_call([sys.executable, '-m', 'twine', 'check', *glob.glob('dist/*')])"
